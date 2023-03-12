@@ -19,6 +19,8 @@ axum-cloudflare-adapter = { git = "https://github.com/logankeenan/axum-cloudflar
 axum-cloudflare-adapter-macros = "0.1.0"
 oneshot = "0.1.5"
 wasm-bindgen-futures = "0.4.34"
+askama_axum = "0.3.0"
+askama = "0.12.0"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
