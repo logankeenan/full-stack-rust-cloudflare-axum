@@ -1,7 +1,14 @@
-use serde_json::json;
-use worker::*;
+use axum::{
+		routing::get,
+		Router as AxumRouter,
+};
+use axum_cloudflare_adapter::{to_axum_request, to_worker_response};
+use tower_service::Service;
+use worker::{console_log, Env, Request, Response, Date, Result, event};
+use crate::app::notes_routes::index;
 
 mod utils;
+mod app;
 
 fn log_request(req: &Request) {
     console_log!(
@@ -14,42 +21,18 @@ fn log_request(req: &Request) {
 }
 
 #[event(fetch)]
-pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Response> {
+pub async fn main(req: Request, _env: Env, _ctx: worker::Context) -> Result<Response> {
     log_request(&req);
 
     // Optionally, get more helpful error messages written to the console in the case of a panic.
     utils::set_panic_hook();
 
-    // Optionally, use the Router to handle matching endpoints, use ":name" placeholders, or "*name"
-    // catch-alls to match on specific patterns. Alternatively, use `Router::with_data(D)` to
-    // provide arbitrary data that will be accessible in each route via the `ctx.data()` method.
-    let router = Router::new();
+		let mut _router: AxumRouter = AxumRouter::new()
+				.route("/", get(index));
 
-    // Add as many routes as your Worker needs! Each route will get a `Request` for handling HTTP
-    // functionality and a `RouteContext` which you can use to  and get route parameters and
-    // Environment bindings like KV Stores, Durable Objects, Secrets, and Variables.
-    router
-        .get("/", |_, _| Response::ok("Hello from Workers!"))
-        .post_async("/form/:field", |mut req, ctx| async move {
-            if let Some(name) = ctx.param("field") {
-                let form = req.form_data().await?;
-                match form.get(name) {
-                    Some(FormEntry::Field(value)) => {
-                        return Response::from_json(&json!({ name: value }))
-                    }
-                    Some(FormEntry::File(_)) => {
-                        return Response::error("`field` param in form shouldn't be a File", 422);
-                    }
-                    None => return Response::error("Bad Request", 400),
-                }
-            }
+		let axum_request = to_axum_request(req).await.unwrap();
+		let axum_response = _router.call(axum_request).await.unwrap();
+		let response = to_worker_response(axum_response).await.unwrap();
 
-            Response::error("Bad Request", 400)
-        })
-        .get("/worker-version", |_, ctx| {
-            let version = ctx.var("WORKERS_RS_VERSION")?.to_string();
-            Response::ok(version)
-        })
-        .run(req, env)
-        .await
+		Ok(response)
 }
