@@ -10,19 +10,24 @@
 				</div>
 		</div>
 		<div class="col-5">
-				<form>
+				<form action="/new-note" method="post" class="needs-validation" novalidate>
 						{% if note_form.id.is_some() %}
 						<input type="hidden" name="id" value="{{ note_form.id.unwrap() }}">
 						{% endif %}
 
-						<textarea name="content" class="form-control">{{ note_form.content }}</textarea>
+						<textarea name="content"
+											class="form-control {% if note_form.content_error.is_some() %}is-invalid{% endif %}">{{ note_form.content }}</textarea>
+						{% if note_form.content_error.is_some() %}
+						<div class="invalid-feedback">{{ note_form.content_error.as_ref().unwrap() }}</div>
+						{% endif %}
+						<button type="submit" class="btn btn-primary mt-2">Submit</button>
 				</form>
 		</div>
 </div>
 <div class="row-5">
 		<div class="col-sm-12">
 				{% if preview.is_some() %}
-				{{ preview.as_ref().unwrap() }}
+				{{ preview.as_ref().unwrap() | safe }}
 				{% endif %}
 		</div>
 </div>

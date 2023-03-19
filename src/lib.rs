@@ -1,11 +1,12 @@
 use axum::{
 		routing::get,
+		routing::post,
 		Router as AxumRouter,
 };
 use axum_cloudflare_adapter::{EnvWrapper, to_axum_request, to_worker_response};
 use tower_service::Service;
 use worker::{console_log, Env, Request, Response, Date, Result, event};
-use crate::app::notes_routes::index;
+use crate::app::notes_routes::{index, new_note};
 
 mod utils;
 mod app;
@@ -42,10 +43,9 @@ pub async fn main(req: Request, _env: Env, _ctx: worker::Context) -> Result<Resp
 
 		let state = AppState::new(EnvWrapper::new(_env.clone().into()));
 
-
-
 		let mut _router: AxumRouter = AxumRouter::new()
 				.route("/", get(index))
+				.route("/new-note", post(new_note))
 				.with_state(state);
 
 		let axum_request = to_axum_request(req).await.unwrap();
