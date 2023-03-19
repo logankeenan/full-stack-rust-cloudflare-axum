@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Note {
-		id: u64,
-		content: String,
-		title: String,
-		created_at: String,
-		updated_at: Option<String>,
-		used_id: Uuid,
+		pub id: i64,
+		pub content: String,
+		pub title: String,
+		pub created_at: String,
+		pub updated_at: Option<String>,
+		pub used_id: Uuid,
 }

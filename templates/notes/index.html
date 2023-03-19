@@ -1,10 +1,29 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-		<meta charset="UTF-8">
-		<title>Title</title>
-</head>
-<body>
-<h1>Hello World!</h1>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+		<div class="col-2">
+				<div class="list-group">
+						{% for note in note_list %}
+						<a href="/notes/{{ note.id }}" class="list-group-item">{{ note.title }}</a>
+						{% endfor %}
+				</div>
+		</div>
+		<div class="col-5">
+				<form>
+						{% if note_form.id.is_some() %}
+						<input type="hidden" name="id" value="{{ note_form.id.unwrap() }}">
+						{% endif %}
+
+						<textarea name="content" class="form-control">{{ note_form.content }}</textarea>
+				</form>
+		</div>
+</div>
+<div class="row-5">
+		<div class="col-sm-12">
+				{% if preview.is_some() %}
+				{{ preview.as_ref().unwrap() }}
+				{% endif %}
+		</div>
+</div>
+{% endblock %}

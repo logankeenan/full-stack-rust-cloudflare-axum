@@ -2,7 +2,7 @@ use axum::{
 		routing::get,
 		Router as AxumRouter,
 };
-use axum_cloudflare_adapter::{to_axum_request, to_worker_response};
+use axum_cloudflare_adapter::{EnvWrapper, to_axum_request, to_worker_response};
 use tower_service::Service;
 use worker::{console_log, Env, Request, Response, Date, Result, event};
 use crate::app::notes_routes::index;
@@ -20,6 +20,19 @@ fn log_request(req: &Request) {
     );
 }
 
+#[derive(Clone)]
+pub struct AppState {
+		pub env_wrapper: EnvWrapper
+}
+
+impl AppState {
+		pub fn new(env_wrapper: EnvWrapper) -> Self {
+				AppState {
+						env_wrapper,
+				}
+		}
+}
+
 #[event(fetch)]
 pub async fn main(req: Request, _env: Env, _ctx: worker::Context) -> Result<Response> {
     log_request(&req);
@@ -27,8 +40,13 @@ pub async fn main(req: Request, _env: Env, _ctx: worker::Context) -> Result<Resp
     // Optionally, get more helpful error messages written to the console in the case of a panic.
     utils::set_panic_hook();
 
+		let state = AppState::new(EnvWrapper::new(_env.clone().into()));
+
+
+
 		let mut _router: AxumRouter = AxumRouter::new()
-				.route("/", get(index));
+				.route("/", get(index))
+				.with_state(state);
 
 		let axum_request = to_axum_request(req).await.unwrap();
 		let axum_response = _router.call(axum_request).await.unwrap();
