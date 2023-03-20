@@ -23,12 +23,13 @@
 						<button type="submit" class="btn btn-primary mt-2">Submit</button>
 				</form>
 		</div>
-</div>
-<div class="row-5">
-		<div class="col-sm-12">
-				{% if preview.is_some() %}
-				{{ preview.as_ref().unwrap() | safe }}
-				{% endif %}
+		<div class="col-5">
+				<div class="col-sm-12">
+						{% if preview.is_some() %}
+						{{ preview.as_ref().unwrap() | safe }}
+						{% endif %}
+				</div>
 		</div>
 </div>
+
 {% endblock %}
