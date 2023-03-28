@@ -5,7 +5,7 @@
 		<div class="col-2">
 				<div class="list-group">
 						{% for note in note_list %}
-						<a href="/notes/{{ note.id }}" class="list-group-item">{{ note.title }}</a>
+						<a href="/?id={{ note.id }}" class="list-group-item">{{ note.title }}</a>
 						{% endfor %}
 				</div>
 		</div>

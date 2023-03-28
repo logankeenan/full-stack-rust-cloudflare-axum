@@ -7,7 +7,7 @@ use axum::{
 		Form
 };
 use axum_cloudflare_adapter::{worker_route_compat};
-use pulldown_cmark::{html, Parser};
+use pulldown_cmark::{Event, html, Options, Parser};
 use serde::{Deserialize, Serialize};
 use crate::{
 		app::notes_model::Note,
@@ -17,7 +17,6 @@ use crate::{
 use uuid::Uuid;
 
 use validator::{Validate};
-use worker::console_log;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NoteListItem {
@@ -56,14 +55,15 @@ pub struct IndexTemplate {
 		pub note_list: Vec<NoteListItem>,
 		pub note_form: NoteForm,
 		pub preview: Option<String>,
+		pub selected_note: Option<Note>
 }
 
 
-fn create_note_form_from_first_note_or_empty(notes: &[Note]) -> NoteForm {
-		match notes.first() {
-				Some(first_note) => NoteForm {
-						id: Some(first_note.id),
-						content: first_note.content.clone(),
+fn note_form_from_selected_note(selected_note: &Option<Note>) -> NoteForm {
+		match selected_note {
+				Some(selected_note) => NoteForm {
+						id: Some(selected_note.id),
+						content: selected_note.content.clone(),
 						content_error: None,
 				},
 				None => NoteForm::default(),
@@ -74,7 +74,7 @@ pub fn map_notes_to_note_list_items(notes: &Vec<Note>) -> Vec<NoteListItem> {
 		notes.into_iter()
 				.map(|note| NoteListItem {
 						id: note.id,
-						title: note.title.clone(),
+						title: first_20_chars(note.content.as_str()),
 				})
 				.collect()
 }
@@ -86,10 +86,36 @@ fn content_to_markdown(content: &str) -> String {
 		markdown_output
 }
 
-fn preview_markdown(notes: &Vec<Note>) -> Option<String> {
-		notes
-				.first()
-				.map(|note| content_to_markdown(&note.content))
+fn first_20_chars(markdown_input: &str) -> String {
+		let mut options = Options::empty();
+		options.insert(Options::ENABLE_STRIKETHROUGH);
+		let parser = Parser::new_ext(markdown_input, options);
+
+		let mut plain_text = String::new();
+		const LENGTH: usize = 20;
+
+		for event in parser {
+				match event {
+						Event::Text(text) => plain_text.push_str(&text),
+						Event::Code(code) => plain_text.push_str(&code),
+						_ => {}
+				}
+				if plain_text.len() >= LENGTH {
+						break;
+				}
+		}
+
+		plain_text.truncate(LENGTH);
+		plain_text
+}
+
+fn preview_markdown(selected_note: &Option<Note>) -> Option<String> {
+		match selected_note {
+				None => None,
+				Some(note) => {
+						Some(content_to_markdown(note.content.as_str()))
+				}
+		}
 }
 
 
@@ -103,20 +129,16 @@ pub async fn index(
 		Query(query_params): Query<IndexQueryParams>,
 		State(state): State<AppState>,
 ) -> impl IntoResponse {
-		match query_params.id {
-				None => {}
-				Some(id) => {
-						console_log!("id: {}, ", id);
-				}
-		}
-
 		let service = NotesService::new(state.env_wrapper);
 		let notes = service.all_notes_ordered_by_most_recent().await;
-		let preview = preview_markdown(&notes);
+		let selected_note = notes.iter().find(|note| note.id == query_params.id.unwrap_or_default()).cloned();
 
-		let note_form = create_note_form_from_first_note_or_empty(&notes);
-
-		IndexTemplate { note_list: map_notes_to_note_list_items(&notes), note_form, preview }
+		IndexTemplate {
+				note_list: map_notes_to_note_list_items(&notes),
+				note_form: note_form_from_selected_note(&selected_note),
+				preview: preview_markdown(&selected_note),
+				selected_note
+		}
 }
 
 
@@ -136,6 +158,7 @@ pub async fn new_note(
 						note_list: map_notes_to_note_list_items(&notes),
 						note_form,
 						preview: Some(preview),
+						selected_note: None,
 				};
 
 				let html = index_template.render().unwrap();
@@ -147,7 +170,6 @@ pub async fn new_note(
 		} else {
 				let note = service.create_note(
 						note_form.content,
-						"title".to_string(),
 						Uuid::new_v4(),
 				).await;
 

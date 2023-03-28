@@ -17,7 +17,7 @@ impl NotesService {
 
 		pub async fn all_notes_ordered_by_most_recent(&self) -> Vec<Note> {
 				let d1 = self.env_wrapper.env.d1("DB").unwrap();
-				let prepared_statement = d1.prepare("SELECT * FROM notes order by create_at desc");
+				let prepared_statement = d1.prepare("SELECT * FROM notes order by created_at desc;");
 				let result: worker::Result<D1Result> = prepared_statement.all().await;
 				match result {
 						Ok(result) => {
@@ -33,7 +33,6 @@ impl NotesService {
 		pub async fn create_note(
 				&self,
 				content: String,
-				title: String,
 				user_id: Uuid,
 		) -> Note {
 				let create_query = "INSERT INTO notes (content, title, used_id) VALUES (?, ?, ?) returning *;";
@@ -41,7 +40,7 @@ impl NotesService {
 				let d1: worker::d1::Database = self.env_wrapper.env.d1("DB").unwrap();
 				let query = d1.prepare(
 						create_query,
-				).bind(&[content.into(), title.into(), user_id.to_string().into()])
+				).bind(&[content.into(), "title".into(), user_id.to_string().into()])
 						.expect("failed to bind query params");
 
 				query
