@@ -30,6 +30,26 @@ impl NotesService {
 				}
 		}
 
+		pub async fn update_note(
+				&self,
+				content: String,
+				note_id: i64
+		) -> Note {
+				let create_query = "update notes set content = ? where id = ? returning *;";
+
+				let d1: worker::d1::Database = self.env_wrapper.env.d1("DB").unwrap();
+				let query = d1.prepare(
+						create_query,
+				).bind(&[content.into(), note_id.to_string().into()])
+						.expect("failed to bind query params");
+
+				query
+						.first::<Note>(None)
+						.await
+						.expect("failed to insert note")
+						.unwrap()
+		}
+
 		pub async fn create_note(
 				&self,
 				content: String,

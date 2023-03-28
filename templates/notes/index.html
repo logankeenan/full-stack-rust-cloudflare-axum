@@ -10,7 +10,14 @@
 				</div>
 		</div>
 		<div class="col-5">
-				<form action="/new-note" method="post" class="needs-validation" novalidate>
+				{% let action -%}
+				{% if note_form.id.is_some() -%}
+					{% let action = "/update" -%}
+				{% else -%}
+					{% let action = "/create" -%}
+				{% endif -%}
+
+				<form action="{{ action }}" method="post" class="needs-validation" novalidate>
 						{% if note_form.id.is_some() %}
 						<input type="hidden" name="id" value="{{ note_form.id.unwrap() }}">
 						{% endif %}

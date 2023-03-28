@@ -143,7 +143,7 @@ pub async fn index(
 
 
 #[worker_route_compat]
-pub async fn new_note(
+pub async fn create_note(
 		State(state): State<AppState>,
 		note_form: Form<NoteForm>,
 ) -> impl IntoResponse {
@@ -173,6 +173,42 @@ pub async fn new_note(
 						Uuid::new_v4(),
 				).await;
 
+				let location = format!("/?id={}", note.id);
+
+				Response::builder()
+						.header("Location", location)
+						.status(303)
+						.body(Body::empty())
+						.unwrap()
+		}
+}
+
+#[worker_route_compat]
+pub async fn update_note(
+		State(state): State<AppState>,
+		note_form: Form<NoteForm>,
+) -> impl IntoResponse {
+		let mut note_form = note_form.0;
+		let service = NotesService::new(state.env_wrapper);
+		if !note_form.is_valid() {
+				let notes = service.all_notes_ordered_by_most_recent().await;
+				let preview = content_to_markdown(&note_form.content);
+
+				let index_template = IndexTemplate {
+						note_list: map_notes_to_note_list_items(&notes),
+						note_form,
+						preview: Some(preview),
+						selected_note: None,
+				};
+
+				let html = index_template.render().unwrap();
+
+				Response::builder()
+								.status(200)
+						.body(html.into())
+						.unwrap()
+		} else {
+				let note = service.update_note(note_form.content, note_form.id.unwrap()).await;
 				let location = format!("/?id={}", note.id);
 
 				Response::builder()
