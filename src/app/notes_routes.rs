@@ -28,7 +28,6 @@ pub struct NoteListItem {
 pub struct NoteForm {
 		pub id: Option<i64>,
 
-		// TODO: probably don't need a min length
 		#[validate(length(min = 10, message = "Content is too short. It must be at least 10 characters long."))]
 		#[validate(length(max = 1000, message = "Content is too long. It must be no more than 1000 characters long."))]
 		pub content: String,
