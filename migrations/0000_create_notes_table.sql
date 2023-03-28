@@ -3,7 +3,6 @@ CREATE TABLE notes
 (
 		id         INTEGER PRIMARY KEY AUTOINCREMENT,
 		content    TEXT not null,
-		title      TEXT not null,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME,
 		used_id    TEXT not null

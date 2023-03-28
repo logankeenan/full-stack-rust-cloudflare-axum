@@ -7,7 +7,6 @@ pub struct NotesService {
 		pub env_wrapper: EnvWrapper,
 }
 
-
 impl NotesService {
 		pub fn new(env_wrapper: EnvWrapper) -> Self {
 				NotesService {
@@ -35,7 +34,7 @@ impl NotesService {
 				content: String,
 				note_id: i64
 		) -> Note {
-				let create_query = "update notes set content = ? where id = ? returning *;";
+				let create_query = "update notes set content = ?, updated_at = CURRENT_TIMESTAMP where id = ? returning *;";
 
 				let d1: worker::d1::Database = self.env_wrapper.env.d1("DB").unwrap();
 				let query = d1.prepare(
@@ -55,12 +54,12 @@ impl NotesService {
 				content: String,
 				user_id: Uuid,
 		) -> Note {
-				let create_query = "INSERT INTO notes (content, title, used_id) VALUES (?, ?, ?) returning *;";
+				let create_query = "INSERT INTO notes (content, used_id) VALUES (?, ?) returning *;";
 
 				let d1: worker::d1::Database = self.env_wrapper.env.d1("DB").unwrap();
 				let query = d1.prepare(
 						create_query,
-				).bind(&[content.into(), "title".into(), user_id.to_string().into()])
+				).bind(&[content.into(), user_id.to_string().into()])
 						.expect("failed to bind query params");
 
 				query
