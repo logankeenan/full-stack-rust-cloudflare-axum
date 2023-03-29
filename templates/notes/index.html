@@ -1,42 +1,80 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-		<div class="col-2">
-				<div class="list-group">
-						{% for note in note_list %}
-						<a href="/?id={{ note.id }}" class="list-group-item">{{ note.title }}</a>
-						{% endfor %}
+<nav class="navbar">
+		<div class="container-fluid">
+				<button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar"
+								aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
+						<span class="navbar-toggler-icon"></span>
+				</button>
+				<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNavbar"
+						 aria-labelledby="offcanvasNavbarLabel">
+						<div class="offcanvas-header">
+								<div class="offcanvas-title d-flex w-100 justify-content-between align-items-center"
+										 id="offcanvasNavbarLabel">
+										<h5>Notes</h5>
+										<a class="btn btn-sm btn-primary me-3" href="/">New</a>
+								</div>
+								<button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+						</div>
+						<div class="offcanvas-body">
+								<ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+										{% for note in note_list %}
+										<li class="nav-item">
+												<a class="nav-link" href="/?id={{ note.id }}">{{ note.title }}</a>
+										</li>
+										{% endfor %}
+								</ul>
+						</div>
 				</div>
 		</div>
-		<div class="col-5">
-				{% let action -%}
-				{% if note_form.id.is_some() -%}
-					{% let action = "/update" -%}
-				{% else -%}
-					{% let action = "/create" -%}
-				{% endif -%}
+</nav>
 
-				<form action="{{ action }}" method="post" class="needs-validation" novalidate>
-						{% if note_form.id.is_some() %}
-						<input type="hidden" name="id" value="{{ note_form.id.unwrap() }}">
-						{% endif %}
 
-						<textarea name="content"
-											class="form-control {% if note_form.content_error.is_some() %}is-invalid{% endif %}">{{ note_form.content }}</textarea>
-						{% if note_form.content_error.is_some() %}
-						<div class="invalid-feedback">{{ note_form.content_error.as_ref().unwrap() }}</div>
-						{% endif %}
-						<button type="submit" class="btn btn-primary mt-2">Submit</button>
-				</form>
-		</div>
-		<div class="col-5">
-				<div class="col-sm-12">
-						{% if preview.is_some() %}
-						{{ preview.as_ref().unwrap() | safe }}
-						{% endif %}
+{% let action -%}
+{% if note_form.id.is_some() -%}
+{% let action = "/update" -%}
+{% else -%}
+{% let action = "/create" -%}
+{% endif -%}
+
+<form action="{{ action }}" method="post" class="needs-validation" novalidate>
+		<div class="container mt-3">
+				<div class="row">
+					<div class="col-12">
+							<div class="w-100 d-flex">
+									<button type="submit" class="btn btn-sm btn-secondary mb-2">Save</button>
+									<button type="submit" class="btn btn-sm btn-secondary mb-2 ms-3">Preview</button>
+							</div>
+					</div>
 				</div>
 		</div>
-</div>
+
+		{% if note_form.id.is_some() %}
+		<input type="hidden" name="id" value="{{ note_form.id.unwrap() }}">
+		{% endif %}
+
+		<div class="container mt-1">
+				<div class="row">
+						<div class="col-md-6 col-sm-12">
+
+								<textarea name="content"
+													placeholder="Create a new markdown note"
+													class="w-100 form-control {% if note_form.content_error.is_some() %}is-invalid{% endif %}">{{ note_form.content }}</textarea>
+								{% if note_form.content_error.is_some() %}
+								<div class="invalid-feedback">{{ note_form.content_error.as_ref().unwrap() }}</div>
+								{% endif %}
+
+						</div>
+						<div class="col-md-6 d-md-block d-sm-none d-none">
+										{% if preview.is_some() %}
+										{{ preview.as_ref().unwrap() | safe }}
+										{% endif %}
+						</div>
+
+				</div>
+		</div>
+</form>
+
 
 {% endblock %}

@@ -16,6 +16,7 @@ use crate::{
 };
 
 use validator::{Validate};
+use worker::console_log;
 use crate::app::user_id_extractor::UserId;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -170,6 +171,8 @@ pub async fn create_note(
 						.body(html.into())
 						.unwrap()
 		} else {
+
+				console_log!("user_id.0: {}", user_id.0);
 				let note = service.create_note(
 						note_form.content,
 						user_id.0,
