@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Note {
@@ -6,5 +7,5 @@ pub struct Note {
 		pub content: String,
 		pub created_at: String,
 		pub updated_at: Option<String>,
-		pub used_id: String,
+		pub user_id: Uuid,
 }
