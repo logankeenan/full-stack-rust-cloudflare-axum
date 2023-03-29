@@ -11,6 +11,6 @@ command = "cargo install -q worker-build --version 0.0.9 && worker-build --relea
 [[ d1_databases ]]
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "markdown-notes"
-database_id = "cd59a7c0-5f05-4268-83c7-03ba22f45424"
+database_id = "0664c0f2-5e8d-4478-8045-67da337903c6"
 
 
