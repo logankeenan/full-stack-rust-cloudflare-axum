@@ -35,7 +35,7 @@ impl NotesService {
 		pub async fn update_note(
 				&self,
 				content: String,
-				note_id: i64
+				note_id: i64,
 		) -> Note {
 				let create_query = "update notes set content = ?, updated_at = CURRENT_TIMESTAMP where id = ? returning *;";
 
@@ -70,5 +70,11 @@ impl NotesService {
 						.await
 						.expect("failed to insert note")
 						.unwrap()
+		}
+
+		pub async fn note_by_id(&self, id: i64, user_id: Uuid) -> Option<Note> {
+				let notes = self.all_notes_ordered_by_most_recent(user_id).await;
+
+				notes.iter().find(|note| note.id == id).cloned()
 		}
 }

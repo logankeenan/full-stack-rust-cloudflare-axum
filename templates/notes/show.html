@@ -29,28 +29,19 @@
 				</div>
 		</div>
 </nav>
-
-
 <div class="container">
-		<form action="/create" method="post" class="needs-validation" novalidate>
-				<div class="row">
-						<div class="col-12 d-flex justify-content-end">
-								<button type="submit" class="btn btn-sm btn-primary mb-2">Create</button>
-						</div>
+		<div class="row">
+				<div class="col-12 d-flex justify-content-end">
+						<a class="btn btn-sm btn-primary mb-2" href="/edit/{{selected_note.id}}">Edit</a>
 				</div>
-				<div class="row">
-						<div class="col-12">
-								<textarea name="content"
-													rows="15"
-													placeholder="Create a new markdown note"
-													class="w-100 form-control {% if note_form.content_error.is_some() %}is-invalid{% endif %}">{{ note_form.content }}</textarea>
-								{% if note_form.content_error.is_some() %}
-								<div class="invalid-feedback">{{ note_form.content_error.as_ref().unwrap() }}</div>
-								{% endif %}
-						</div>
+		</div>
+		<div class="row">
+				<div class="col-12">
+						{{ preview.to_string() | safe }}
 				</div>
-		</form>
+		</div>
 </div>
+
 
 
 {% endblock %}

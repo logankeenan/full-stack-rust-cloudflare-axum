@@ -2,10 +2,10 @@ use askama_axum::Template;
 use axum::{
 		body::Body,
 		extract::State,
-		extract::Query,
 		response::{IntoResponse, Response},
 		Form,
 };
+use axum::extract::Path;
 use axum_cloudflare_adapter::{worker_route_compat};
 use pulldown_cmark::{Event, html, Options, Parser};
 use serde::{Deserialize, Serialize};
@@ -16,13 +16,21 @@ use crate::{
 };
 
 use validator::{Validate};
-use worker::console_log;
 use crate::app::user_id_extractor::UserId;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NoteListItem {
 		pub id: i64,
 		pub title: String,
+}
+
+impl NoteListItem {
+		pub fn from(note: &Note) -> Self {
+				NoteListItem {
+						id: note.id,
+						title: first_20_chars(&note.content),
+				}
+		}
 }
 
 #[derive(Validate, Debug, Serialize, Deserialize, Clone, Default)]
@@ -35,6 +43,17 @@ pub struct NoteForm {
 
 		pub content_error: Option<String>,
 }
+
+impl NoteForm {
+		pub fn from(note: &Note) -> Self {
+				NoteForm {
+						id: Some(note.id),
+						content: note.content.clone(),
+						content_error: None,
+				}
+		}
+}
+
 
 impl NoteForm {
 		pub fn is_valid(&mut self) -> bool {
@@ -54,29 +73,6 @@ impl NoteForm {
 pub struct IndexTemplate {
 		pub note_list: Vec<NoteListItem>,
 		pub note_form: NoteForm,
-		pub preview: Option<String>,
-		pub selected_note: Option<Note>,
-}
-
-
-fn note_form_from_selected_note(selected_note: &Option<Note>) -> NoteForm {
-		match selected_note {
-				Some(selected_note) => NoteForm {
-						id: Some(selected_note.id),
-						content: selected_note.content.clone(),
-						content_error: None,
-				},
-				None => NoteForm::default(),
-		}
-}
-
-pub fn map_notes_to_note_list_items(notes: &Vec<Note>) -> Vec<NoteListItem> {
-		notes.into_iter()
-				.map(|note| NoteListItem {
-						id: note.id,
-						title: first_20_chars(note.content.as_str()),
-				})
-				.collect()
 }
 
 fn content_to_markdown(content: &str) -> String {
@@ -109,40 +105,19 @@ fn first_20_chars(markdown_input: &str) -> String {
 		plain_text
 }
 
-fn preview_markdown(selected_note: &Option<Note>) -> Option<String> {
-		match selected_note {
-				None => None,
-				Some(note) => {
-						Some(content_to_markdown(note.content.as_str()))
-				}
-		}
-}
-
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct IndexQueryParams {
-		id: Option<i64>,
-}
-
 #[worker_route_compat]
 pub async fn index(
-		Query(query_params): Query<IndexQueryParams>,
 		State(state): State<AppState>,
 		user_id: UserId,
 ) -> impl IntoResponse {
-
 		let service = NotesService::new(state.env_wrapper);
 		let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
-		let selected_note = notes.iter().find(|note| note.id == query_params.id.unwrap_or_default()).cloned();
 
 		IndexTemplate {
-				note_list: map_notes_to_note_list_items(&notes),
-				note_form: note_form_from_selected_note(&selected_note),
-				preview: preview_markdown(&selected_note),
-				selected_note,
+				note_list: notes.iter().map(NoteListItem::from).collect(),
+				note_form: NoteForm::default(),
 		}
 }
-
 
 #[worker_route_compat]
 pub async fn create_note(
@@ -155,13 +130,10 @@ pub async fn create_note(
 		let service = NotesService::new(state.env_wrapper);
 		if !note_form.is_valid() {
 				let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
-				let preview = content_to_markdown(&note_form.content);
 
 				let index_template = IndexTemplate {
-						note_list: map_notes_to_note_list_items(&notes),
+						note_list: notes.iter().map(NoteListItem::from).collect(),
 						note_form,
-						preview: Some(preview),
-						selected_note: None,
 				};
 
 				let html = index_template.render().unwrap();
@@ -171,14 +143,12 @@ pub async fn create_note(
 						.body(html.into())
 						.unwrap()
 		} else {
-
-				console_log!("user_id.0: {}", user_id.0);
 				let note = service.create_note(
 						note_form.content,
 						user_id.0,
 				).await;
 
-				let location = format!("/?id={}", note.id);
+				let location = format!("/show/{}", note.id);
 
 				Response::builder()
 						.header("Location", location)
@@ -198,13 +168,10 @@ pub async fn update_note(
 		let service = NotesService::new(state.env_wrapper);
 		if !note_form.is_valid() {
 				let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
-				let preview = content_to_markdown(&note_form.content);
 
 				let index_template = IndexTemplate {
-						note_list: map_notes_to_note_list_items(&notes),
+						note_list: notes.iter().map(NoteListItem::from).collect(),
 						note_form,
-						preview: Some(preview),
-						selected_note: None,
 				};
 
 				let html = index_template.render().unwrap();
@@ -215,7 +182,7 @@ pub async fn update_note(
 						.unwrap()
 		} else {
 				let note = service.update_note(note_form.content, note_form.id.unwrap()).await;
-				let location = format!("/?id={}", note.id);
+				let location = format!("/show/{}", note.id);
 
 				Response::builder()
 						.header("Location", location)
@@ -223,5 +190,88 @@ pub async fn update_note(
 						.body(Body::empty())
 						.unwrap()
 		}
+}
+
+#[worker_route_compat]
+pub async fn show_note(
+		State(state): State<AppState>,
+		Path(id): Path<i64>,
+		user_id: UserId,
+) -> impl IntoResponse {
+		let service = NotesService::new(state.env_wrapper);
+
+		let note_by_id: Option<Note> = service.note_by_id(id, user_id.0).await;
+
+		if let Some(note) = note_by_id {
+				let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
+				let preview = content_to_markdown(&note.content);
+
+				let show_template = ShowTemplate {
+						note_list: notes.iter().map(NoteListItem::from).collect(),
+						preview,
+						selected_note: note,
+				};
+
+				let html: String = show_template.render().unwrap();
+
+				Response::builder()
+						.status(200)
+						.body(html.into())
+						.unwrap()
+		} else {
+				Response::builder()
+						.status(404)
+						.body(Body::from("Note not found"))
+						.unwrap()
+		}
+}
+
+
+#[derive(Template)]
+#[template(path = "notes/show.html")]
+pub struct ShowTemplate {
+		pub note_list: Vec<NoteListItem>,
+		pub preview: String,
+		pub selected_note: Note,
+}
+
+
+#[worker_route_compat]
+pub async fn edit_note(
+		State(state): State<AppState>,
+		Path(id): Path<i64>,
+		user_id: UserId,
+) -> impl IntoResponse {
+		let service = NotesService::new(state.env_wrapper);
+
+		let note_by_id: Option<Note> = service.note_by_id(id, user_id.0).await;
+
+		if let Some(note) = note_by_id {
+				let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
+
+				let show_template = EditTemplate {
+						note_list: notes.iter().map(NoteListItem::from).collect(),
+						note_form: NoteForm::from(&note),
+				};
+
+				let html: String = show_template.render().unwrap();
+
+				Response::builder()
+						.status(200)
+						.body(html.into())
+						.unwrap()
+		} else {
+				Response::builder()
+						.status(404)
+						.body(Body::from("Note not found"))
+						.unwrap()
+		}
+}
+
+#[derive(Template)]
+#[template(path = "notes/edit.html")]
+pub struct EditTemplate {
+		pub note_list: Vec<NoteListItem>,
+		pub note_form: NoteForm,
 }
 
