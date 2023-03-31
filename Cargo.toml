@@ -16,7 +16,7 @@ serde_json = "1.0.67"
 tower-service = "0.3.2"
 axum-cloudflare-adapter = { git = "https://github.com/logankeenan/axum-cloudflare-adapter.git", branch = "d1-support" }
 axum-cloudflare-adapter-macros = "0.1.0"
-axum = { version = "0.6.7", default-features = false, features = ["form", "query"] }
+axum = { version = "0.6.7", default-features = false, features = ["form", "query", "macros"] }
 oneshot = "0.1.5"
 wasm-bindgen-futures = "0.4.34"
 askama_axum = "0.3.0"

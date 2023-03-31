@@ -77,4 +77,12 @@ impl NotesService {
 
 				notes.iter().find(|note| note.id == id).cloned()
 		}
+
+		pub async fn delete_notes_old_than_15_minutes(&self) {
+			let query = "DELETE FROM notes WHERE strftime('%s', CURRENT_TIMESTAMP) - strftime('%s', created_at) > 15 * 60;";
+
+				let d1: worker::d1::Database = self.env_wrapper.env.d1("DB").unwrap();
+
+				d1.prepare(query).run().await.expect("failed to execute delete statement");
+		}
 }

@@ -1,10 +1,14 @@
-use axum::extract::{FromRequestParts};
 use cookie::{Cookie, CookieJar};
-use axum::http;
-use axum::http::header::COOKIE;
-use axum::http::request::Parts;
+use axum::{
+		http,
+		extract::{FromRef, FromRequestParts},
+		http::header::COOKIE,
+		http::request::Parts,
+		async_trait
+};
 use uuid::Uuid;
-use axum::async_trait;
+use crate::app::notes_service::NotesService;
+use crate::AppState;
 
 #[derive(Debug, Clone, Default)]
 pub struct UserId(pub Uuid);
@@ -36,6 +40,22 @@ impl<S> FromRequestParts<S> for UserId
 				} else {
 						Err(http::StatusCode::BAD_REQUEST)
 				}
+		}
+}
+
+
+#[async_trait]
+impl<S> FromRequestParts<S> for NotesService
+		where
+				AppState: FromRef<S>,
+				S: Send + Sync,
+{
+		type Rejection = http::StatusCode;
+
+		async fn from_request_parts(_parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+				let state = AppState::from_ref(&state);
+
+				Ok(NotesService::new( state.env_wrapper))
 		}
 }
 

@@ -1,22 +1,20 @@
 use askama_axum::Template;
 use axum::{
 		body::Body,
-		extract::State,
 		response::{IntoResponse, Response},
 		Form,
+		extract::Path
 };
-use axum::extract::Path;
 use axum_cloudflare_adapter::{worker_route_compat};
 use pulldown_cmark::{Event, html, Options, Parser};
 use serde::{Deserialize, Serialize};
 use crate::{
 		app::notes_model::Note,
 		app::notes_service::NotesService,
-		AppState,
 };
 
 use validator::{Validate};
-use crate::app::user_id_extractor::UserId;
+use crate::app::axum_extractors::UserId;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NoteListItem {
@@ -37,7 +35,7 @@ impl NoteListItem {
 pub struct NoteForm {
 		pub id: Option<i64>,
 
-		#[validate(length(min = 10, message = "Content is too short. It must be at least 10 characters long."))]
+		#[validate(length(min = 1, message = "Content is too short. It must be at least 1 characters long."))]
 		#[validate(length(max = 1000, message = "Content is too long. It must be no more than 1000 characters long."))]
 		pub content: String,
 
@@ -107,11 +105,10 @@ fn first_20_chars(markdown_input: &str) -> String {
 
 #[worker_route_compat]
 pub async fn index(
-		State(state): State<AppState>,
 		user_id: UserId,
+		note_service: NotesService,
 ) -> impl IntoResponse {
-		let service = NotesService::new(state.env_wrapper);
-		let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
+		let notes = note_service.all_notes_ordered_by_most_recent(user_id.0).await;
 
 		IndexTemplate {
 				note_list: notes.iter().map(NoteListItem::from).collect(),
@@ -121,15 +118,14 @@ pub async fn index(
 
 #[worker_route_compat]
 pub async fn create_note(
-		State(state): State<AppState>,
 		user_id: UserId,
+		notes_service: NotesService,
 		note_form: Form<NoteForm>,
 ) -> impl IntoResponse {
 		let mut note_form = note_form.0;
 
-		let service = NotesService::new(state.env_wrapper);
 		if !note_form.is_valid() {
-				let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
+				let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
 
 				let index_template = IndexTemplate {
 						note_list: notes.iter().map(NoteListItem::from).collect(),
@@ -143,7 +139,7 @@ pub async fn create_note(
 						.body(html.into())
 						.unwrap()
 		} else {
-				let note = service.create_note(
+				let note = notes_service.create_note(
 						note_form.content,
 						user_id.0,
 				).await;
@@ -160,14 +156,13 @@ pub async fn create_note(
 
 #[worker_route_compat]
 pub async fn update_note(
-		State(state): State<AppState>,
+		notes_service: NotesService,
 		user_id: UserId,
 		note_form: Form<NoteForm>,
 ) -> impl IntoResponse {
 		let mut note_form = note_form.0;
-		let service = NotesService::new(state.env_wrapper);
 		if !note_form.is_valid() {
-				let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
+				let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
 
 				let index_template = IndexTemplate {
 						note_list: notes.iter().map(NoteListItem::from).collect(),
@@ -181,7 +176,7 @@ pub async fn update_note(
 						.body(html.into())
 						.unwrap()
 		} else {
-				let note = service.update_note(note_form.content, note_form.id.unwrap()).await;
+				let note = notes_service.update_note(note_form.content, note_form.id.unwrap()).await;
 				let location = format!("/show/{}", note.id);
 
 				Response::builder()
@@ -194,16 +189,15 @@ pub async fn update_note(
 
 #[worker_route_compat]
 pub async fn show_note(
-		State(state): State<AppState>,
+		notes_service: NotesService,
 		Path(id): Path<i64>,
 		user_id: UserId,
 ) -> impl IntoResponse {
-		let service = NotesService::new(state.env_wrapper);
 
-		let note_by_id: Option<Note> = service.note_by_id(id, user_id.0).await;
+		let note_by_id: Option<Note> = notes_service.note_by_id(id, user_id.0).await;
 
 		if let Some(note) = note_by_id {
-				let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
+				let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
 				let preview = content_to_markdown(&note.content);
 
 				let show_template = ShowTemplate {
@@ -238,16 +232,14 @@ pub struct ShowTemplate {
 
 #[worker_route_compat]
 pub async fn edit_note(
-		State(state): State<AppState>,
+		notes_service: NotesService,
 		Path(id): Path<i64>,
 		user_id: UserId,
 ) -> impl IntoResponse {
-		let service = NotesService::new(state.env_wrapper);
-
-		let note_by_id: Option<Note> = service.note_by_id(id, user_id.0).await;
+		let note_by_id: Option<Note> = notes_service.note_by_id(id, user_id.0).await;
 
 		if let Some(note) = note_by_id {
-				let notes = service.all_notes_ordered_by_most_recent(user_id.0).await;
+				let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
 
 				let show_template = EditTemplate {
 						note_list: notes.iter().map(NoteListItem::from).collect(),

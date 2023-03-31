@@ -61,7 +61,6 @@
 								<textarea name="content"
 													id="content"
 													rows="15"
-													placeholder="Create a new markdown note"
 													class="w-100 form-control {% if note_form.content_error.is_some() %}is-invalid{% endif %}">{{ note_form.content }}</textarea>
 								{% if note_form.content_error.is_some() %}
 								<div class="invalid-feedback">{{ note_form.content_error.as_ref().unwrap() }}</div>

@@ -1,9 +1,10 @@
 use axum::{routing::get, routing::post, Router as AxumRouter, middleware};
+use axum::extract::FromRef;
 use axum_cloudflare_adapter::{EnvWrapper, to_axum_request, to_worker_response};
 use tower_service::Service;
 use worker::{console_log, Env, Request, Response, Date, Result, event};
 use crate::app::notes_routes::{index, create_note, update_note, show_note, edit_note};
-use crate::app::user_id_middleware::set_user_id_cookie;
+use crate::app::axum_middleware::{clean_database, set_user_id_cookie};
 
 mod utils;
 mod app;
@@ -18,7 +19,7 @@ fn log_request(req: &Request) {
     );
 }
 
-#[derive(Clone)]
+#[derive(FromRef, Clone)]
 pub struct AppState {
 		pub env_wrapper: EnvWrapper
 }
@@ -47,6 +48,7 @@ pub async fn main(req: Request, _env: Env, _ctx: worker::Context) -> Result<Resp
 				.route("/show/:id", get(show_note))
 				.route("/edit/:id", get(edit_note))
 				.layer(middleware::from_fn(set_user_id_cookie))
+				.layer(middleware::from_fn_with_state(state.clone(), clean_database))
 				.with_state(state);
 
 		let axum_request = to_axum_request(req).await.unwrap();
