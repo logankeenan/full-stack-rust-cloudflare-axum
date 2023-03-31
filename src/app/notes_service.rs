@@ -72,12 +72,6 @@ impl NotesService {
 						.unwrap()
 		}
 
-		pub async fn note_by_id(&self, id: i64, user_id: Uuid) -> Option<Note> {
-				let notes = self.all_notes_ordered_by_most_recent(user_id).await;
-
-				notes.iter().find(|note| note.id == id).cloned()
-		}
-
 		pub async fn delete_notes_old_than_15_minutes(&self) {
 			let query = "DELETE FROM notes WHERE strftime('%s', CURRENT_TIMESTAMP) - strftime('%s', created_at) > 15 * 60;";
 

@@ -3,7 +3,7 @@ use axum::{
 		body::Body,
 		response::{IntoResponse, Response},
 		Form,
-		extract::Path
+		extract::Path,
 };
 use axum_cloudflare_adapter::{worker_route_compat};
 use pulldown_cmark::{Event, html, Options, Parser};
@@ -198,11 +198,10 @@ pub async fn show_note(
 		Path(id): Path<i64>,
 		user_id: UserId,
 ) -> impl IntoResponse {
-
-		let note_by_id: Option<Note> = notes_service.note_by_id(id, user_id.0).await;
+		let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
+		let note_by_id = notes.iter().find(|note| note.id == id).cloned();
 
 		if let Some(note) = note_by_id {
-				let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
 				let preview = content_to_markdown(&note.content);
 
 				let show_template = ShowTemplate {
@@ -241,11 +240,10 @@ pub async fn edit_note(
 		Path(id): Path<i64>,
 		user_id: UserId,
 ) -> impl IntoResponse {
-		let note_by_id: Option<Note> = notes_service.note_by_id(id, user_id.0).await;
+		let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
+		let note_by_id = notes.iter().find(|note| note.id == id).cloned();
 
 		if let Some(note) = note_by_id {
-				let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
-
 				let show_template = EditTemplate {
 						note_list: notes.iter().map(NoteListItem::from).collect(),
 						note_form: NoteForm::from(&note),
