@@ -2,7 +2,7 @@
 	"private": true,
 	"version": "0.0.0",
 	"scripts": {
-		"deploy": "wrangler publish",
+		"deploy": "wrangler publish  --name full-stack-rust-cloudflare-axum",
 		"dev": "wrangler dev --local --persist --log-level debug",
 		"db:recreate": "rm -rf .wrangler/state/d1/DB.sqlite3 && wrangler d1 migrations apply markdown-notes --local"
 	},
