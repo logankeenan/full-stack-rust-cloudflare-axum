@@ -76,7 +76,12 @@ pub struct IndexTemplate {
 fn content_to_markdown(content: &str) -> String {
 		let parser = Parser::new(content);
 		let mut markdown_output = String::new();
-		html::push_html(&mut markdown_output, parser);
+
+		let filtered_parser = parser.into_iter().filter(|event| {
+				!matches!(event, Event::Html(ref html) | Event::Html(ref html) if html.contains("<script"))
+		});
+
+		html::push_html(&mut markdown_output, filtered_parser);
 		markdown_output
 }
 
