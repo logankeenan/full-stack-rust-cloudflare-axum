@@ -5,6 +5,7 @@ use axum::{
 		Form,
 		extract::Path,
 };
+use axum::extract::Query;
 use axum_cloudflare_adapter::{worker_route_compat};
 use pulldown_cmark::{Event, html, Options, Parser};
 use serde::{Deserialize, Serialize};
@@ -268,5 +269,58 @@ pub async fn edit_note(
 pub struct EditTemplate {
 		pub note_list: Vec<NoteListItem>,
 		pub note_form: NoteForm,
+}
+
+
+#[derive(Deserialize)]
+pub struct SearchQuery {
+		search: String,
+}
+
+#[worker_route_compat]
+pub async fn search_note(
+		notes_service: NotesService,
+		Query(SearchQuery { search }): Query<SearchQuery>,
+		user_id: UserId,
+) -> impl IntoResponse {
+		let notes = notes_service.all_notes_ordered_by_most_recent(user_id.0).await;
+
+		let filtered_notes: Vec<NoteSearchPreview> = notes
+				.iter()
+				.filter(|note| note.content.to_lowercase().contains(&search.to_lowercase()))
+				.map(|note| {
+						let preview = content_to_markdown(&note.content);
+						NoteSearchPreview {
+								id: note.id,
+								preview,
+						}
+				})
+				.collect();
+
+		let search_template = SearchTemplate {
+				note_list: notes.iter().map(NoteListItem::from).collect(),
+				filtered_notes,
+				search,
+		};
+		let html = search_template.render().unwrap();
+
+		Response::builder()
+				.status(200)
+				.body(html)
+				.unwrap()
+}
+
+pub struct NoteSearchPreview {
+		pub id: i64,
+		pub preview: String
+}
+
+
+#[derive(Template)]
+#[template(path = "notes/search.html")]
+pub struct SearchTemplate {
+		pub note_list: Vec<NoteListItem>,
+		pub filtered_notes: Vec<NoteSearchPreview>,
+		pub search: String
 }
 

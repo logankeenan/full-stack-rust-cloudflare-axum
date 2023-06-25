@@ -3,7 +3,7 @@ use axum::extract::FromRef;
 use axum_cloudflare_adapter::{EnvWrapper, to_axum_request, to_worker_response};
 use tower_service::Service;
 use worker::{console_log, Env, Request, Response, Date, Result, event};
-use crate::app::notes_routes::{index, create_note, update_note, show_note, edit_note};
+use crate::app::notes_routes::{index, create_note, update_note, show_note, edit_note, search_note};
 use crate::app::axum_middleware::{clean_database, set_user_id_cookie};
 
 mod utils;
@@ -47,6 +47,7 @@ pub async fn main(req: Request, _env: Env, _ctx: worker::Context) -> Result<Resp
 				.route("/update", post(update_note))
 				.route("/show/:id", get(show_note))
 				.route("/edit/:id", get(edit_note))
+				.route("/search", get(search_note))
 				.layer(middleware::from_fn(set_user_id_cookie))
 				.layer(middleware::from_fn_with_state(state.clone(), clean_database))
 				.with_state(state);
